@@ -1624,6 +1624,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
+            int layoutHeight = mLayout.getHeight();
             int rectBottom = mTextInputY + mTextInputH;
             int keyboardTop = screenHeight - mKeyboardHeight;
 
@@ -1631,8 +1632,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 panY = keyboardTop - rectBottom;
             }
 
+            // Get display metrics for debugging
+            android.util.DisplayMetrics dm = mSingleton.getResources().getDisplayMetrics();
+
             Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
                   " screenH=" + screenHeight +
+                  " layoutH=" + layoutHeight +
+                  " dmH=" + dm.heightPixels +
                   " rectBot=" + rectBottom +
                   " kbTop=" + keyboardTop +
                   " panY=" + panY +
