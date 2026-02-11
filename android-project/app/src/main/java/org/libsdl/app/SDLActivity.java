@@ -894,7 +894,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
     /* Keyboard pan&scan support */
     protected static int mKeyboardHeight;
-    protected static int mTextInputX, mTextInputY, mTextInputW, mTextInputH;
+    protected static volatile int mTextInputX, mTextInputY, mTextInputW, mTextInputH;
 
     /**
      * This method is called by SDL if SDL did not handle a message itself.
@@ -1525,9 +1525,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                         if (newHeight != mKeyboardHeight) {
                             mKeyboardHeight = newHeight;
                             Log.v(TAG, "WindowInsetsAnim onEnd: keyboard height = " + mKeyboardHeight);
-                            updateViewPan();
                         }
                     }
+                    /* Always re-evaluate pan at the end of the animation.
+                     * The text input rect may have arrived from the SDL
+                     * thread while the animation was running. */
+                    updateViewPan();
                 }
             }
         );
@@ -1626,15 +1629,19 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     public static void updateTextInputArea(int x, int y, int w, int h) {
         Log.v(TAG, "updateTextInputArea called: x=" + x + " y=" + y + " w=" + w + " h=" + h);
-        // Transfer the task to the main thread as a Runnable
+
+        /* Update fields immediately so that WindowInsetsAnimation
+         * callbacks (which run during view traversal, BEFORE any
+         * Handler messages) can see the current text input rect. */
+        mTextInputX = x;
+        mTextInputY = y;
+        mTextInputW = w;
+        mTextInputH = h;
+
+        // Post UI updates and pan recalculation to the main thread
         mSingleton.commandHandler.post(new Runnable() {
             @Override
             public void run() {
-                mTextInputX = x;
-                mTextInputY = y;
-                mTextInputW = w;
-                mTextInputH = h;
-
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;
                     int eh = (h > 0) ? h : 1;
