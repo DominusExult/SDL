@@ -465,7 +465,7 @@ bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
          * (e.g. logical presentation), but the keyboard pan logic needs actual
          * pixel positions.  When no renderer exists the rect is used as-is. */
         SDL_Rect windowRect = *r;
-        SDL_Renderer *renderer = SDL_GetRendererForWindow(window);
+        SDL_Renderer *renderer = SDL_GetRenderer(window);
         if (renderer) {
             float wx, wy, wx2, wy2;
             SDL_RenderCoordinatesToWindow(renderer, (float)r->x, (float)r->y, &wx, &wy);
