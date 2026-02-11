@@ -1635,6 +1635,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             // Get display metrics for debugging
             android.util.DisplayMetrics dm = mSingleton.getResources().getDisplayMetrics();
 
+            // Log the surface and layout positions
+            int[] surfaceLoc = new int[2];
+            int[] layoutLoc = new int[2];
+            mSurface.getLocationOnScreen(surfaceLoc);
+            mLayout.getLocationOnScreen(layoutLoc);
+
             Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
                   " screenH=" + screenHeight +
                   " layoutH=" + layoutHeight +
@@ -1642,12 +1648,14 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                   " rectBot=" + rectBottom +
                   " kbTop=" + keyboardTop +
                   " panY=" + panY +
-                  " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
+                  " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")" +
+                  " surfaceLoc=(" + surfaceLoc[0] + "," + surfaceLoc[1] + ")" +
+                  " layoutLoc=(" + layoutLoc[0] + "," + layoutLoc[1] + ")");
         } else {
             Log.v(TAG, "updateViewPan: SKIPPED kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
         }
 
-        mLayout.setTranslationY(panY);
+        mSurface.setTranslationY(panY);
     }
 
     /**
