@@ -343,7 +343,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         mTextInputY = 0;
         mTextInputW = 0;
         mTextInputH = 0;
-        mSDLWindowH = 0;
     }
 
     protected SDLSurface createSDLSurface(Context context) {
@@ -897,7 +896,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /* Keyboard pan&scan support */
     protected static int mKeyboardHeight;
     protected static int mTextInputX, mTextInputY, mTextInputW, mTextInputH;
-    protected static int mSDLWindowH;
 
     /**
      * This method is called by SDL if SDL did not handle a message itself.
@@ -1581,9 +1579,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * Update the view pan/scroll to keep the text input area visible
      * above the on-screen keyboard, similar to iOS behavior.
      *
-     * The text input rect is in SDL window coordinates. We scale these to
-     * screen pixel coordinates using the SDL window height for comparison
-     * against the keyboard position.
+     * The text input rect arrives in screen pixel coordinates (converted
+     * from render coordinates on the C side), so we compare directly
+     * against the keyboard position in pixels.
      */
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
@@ -1592,25 +1590,20 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         float panY = 0.0f;
 
-        if (mKeyboardHeight > 0 && mTextInputH > 0 && mSDLWindowH > 0) {
+        if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
-
-            // Scale from SDL window coordinates to screen pixels
-            float scaleY = (float) screenHeight / mSDLWindowH;
-            int rectBottomPx = (int) ((mTextInputY + mTextInputH) * scaleY);
-
+            int rectBottom = mTextInputY + mTextInputH;
             int keyboardTop = screenHeight - mKeyboardHeight;
-            if (rectBottomPx > keyboardTop) {
-                panY = keyboardTop - rectBottomPx;
+            if (rectBottom > keyboardTop) {
+                panY = keyboardTop - rectBottom;
             }
         }
 
         if (mLayout.getTranslationY() != panY) {
             Log.v(TAG, "updateViewPan: panY=" + panY +
                   " kbH=" + mKeyboardHeight +
-                  " screenH=" + (mSurface != null ? mSurface.getHeight() : 0) +
-                  " sdlWinH=" + mSDLWindowH +
-                  " sdlRect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
+                  " screenH=" + mSurface.getHeight() +
+                  " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
         }
 
         mLayout.setTranslationY(panY);
@@ -1619,7 +1612,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /**
      * This method is called by SDL using JNI to update the text input area.
      */
-    public static void updateTextInputArea(int x, int y, int w, int h, int windowH) {
+    public static void updateTextInputArea(int x, int y, int w, int h) {
         // Transfer the task to the main thread as a Runnable
         mSingleton.commandHandler.post(new Runnable() {
             @Override
@@ -1628,7 +1621,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 mTextInputY = y;
                 mTextInputW = w;
                 mTextInputH = h;
-                mSDLWindowH = windowH;
 
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;

@@ -459,7 +459,24 @@ bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
     if (r->x != last_rect.x || r->y != last_rect.y ||
         r->w != last_rect.w || r->h != last_rect.h) {
         last_rect = *r;
-        Android_JNI_UpdateTextInputArea(window, r);
+
+        /* Convert from render/logical coordinates to window (pixel) coordinates.
+         * Apps typically pass coordinates in the renderer's coordinate space
+         * (e.g. logical presentation), but the keyboard pan logic needs actual
+         * pixel positions.  When no renderer exists the rect is used as-is. */
+        SDL_Rect windowRect = *r;
+        SDL_Renderer *renderer = SDL_GetRendererForWindow(window);
+        if (renderer) {
+            float wx, wy, wx2, wy2;
+            SDL_RenderCoordinatesToWindow(renderer, (float)r->x, (float)r->y, &wx, &wy);
+            SDL_RenderCoordinatesToWindow(renderer, (float)(r->x + r->w), (float)(r->y + r->h), &wx2, &wy2);
+            windowRect.x = (int)wx;
+            windowRect.y = (int)wy;
+            windowRect.w = (int)(wx2 - wx);
+            windowRect.h = (int)(wy2 - wy);
+        }
+
+        Android_JNI_UpdateTextInputArea(&windowRect);
     }
     return true;
 }

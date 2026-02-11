@@ -66,7 +66,7 @@ extern bool Android_JNI_ShouldMinimizeOnFocusLoss(void);
 
 extern bool Android_JNI_GetAccelerometerValues(float values[3]);
 extern void Android_JNI_ShowScreenKeyboard(int input_type, SDL_Rect *inputRect);
-extern void Android_JNI_UpdateTextInputArea(SDL_Window *window, SDL_Rect *inputRect);
+extern void Android_JNI_UpdateTextInputArea(SDL_Rect *inputRect);
 extern void Android_JNI_HideScreenKeyboard(void);
 extern ANativeWindow *Android_JNI_GetNativeWindow(void);
 
