@@ -1444,6 +1444,50 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));
     }
 
+    static class UpdateTextInputAreaTask implements Runnable {
+        /*
+         * This is used to regulate the pan&scan method to have some offset from
+         * the bottom edge of the input region and the top edge of an input
+         * method (soft keyboard)
+         */
+        static final int HEIGHT_PADDING = 15;
+
+        public int x, y, w, h;
+
+        public UpdateTextInputAreaTask(int x, int y, int w, int h) {
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+
+            /* Minimum size of 1 pixel, so it takes focus. */
+            if (this.w <= 0) {
+                this.w = 1;
+            }
+            if (this.h + HEIGHT_PADDING <= 0) {
+                this.h = 1 - HEIGHT_PADDING;
+            }
+        }
+
+        @Override
+        public void run() {
+            if (mTextEdit != null) {
+                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + HEIGHT_PADDING);
+                params.leftMargin = x;
+                params.topMargin = y;
+                mTextEdit.setLayoutParams(params);
+            }
+        }
+    }
+
+    /**
+     * This method is called by SDL using JNI to update the text input area.
+     */
+    public static void updateTextInputArea(int x, int y, int w, int h) {
+        // Transfer the task to the main thread as a Runnable
+        mSingleton.commandHandler.post(new UpdateTextInputAreaTask(x, y, w, h));
+    }
+
     public static boolean isTextInputEvent(KeyEvent event) {
 
         // Key pressed with Ctrl should be sent as SDL_KEYDOWN/SDL_KEYUP and not SDL_TEXTINPUT

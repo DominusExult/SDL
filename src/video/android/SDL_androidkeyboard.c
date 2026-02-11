@@ -449,6 +449,14 @@ void Android_HideScreenKeyboard(SDL_VideoDevice *_this, SDL_Window *window)
     Android_JNI_HideScreenKeyboard();
 }
 
+bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
+{
+    if (_this->screen_keyboard_shown) {
+        Android_JNI_UpdateTextInputArea(&window->text_input_rect);
+    }
+    return true;
+}
+
 void Android_RestoreScreenKeyboard(SDL_VideoDevice *_this, SDL_Window *window)
 {
     if (_this->screen_keyboard_shown) {

@@ -142,6 +142,7 @@ static SDL_VideoDevice *Android_CreateDevice(void)
     device->HasScreenKeyboardSupport = Android_HasScreenKeyboardSupport;
     device->ShowScreenKeyboard = Android_ShowScreenKeyboard;
     device->HideScreenKeyboard = Android_HideScreenKeyboard;
+    device->UpdateTextInputArea = Android_UpdateTextInputArea;
 
     // Clipboard
     device->SetClipboardText = Android_SetClipboardText;
