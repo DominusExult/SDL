@@ -1503,9 +1503,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 @Override
                 public WindowInsets onProgress(WindowInsets insets,
                                                List<WindowInsetsAnimation> runningAnimations) {
-                    int imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom;
-                    boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
-                    int newHeight = imeVisible ? imeHeight : 0;
+                    int newHeight = getKeyboardHeightFromInsets(insets);
                     if (newHeight != mKeyboardHeight) {
                         mKeyboardHeight = newHeight;
                         Log.v(TAG, "WindowInsetsAnim: keyboard height = " + mKeyboardHeight);
@@ -1519,9 +1517,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                     super.onEnd(animation);
                     WindowInsets insets = mLayout.getRootWindowInsets();
                     if (insets != null) {
-                        int imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom;
-                        boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
-                        int newHeight = imeVisible ? imeHeight : 0;
+                        int newHeight = getKeyboardHeightFromInsets(insets);
                         if (newHeight != mKeyboardHeight) {
                             mKeyboardHeight = newHeight;
                             Log.v(TAG, "WindowInsetsAnim onEnd: keyboard height = " + mKeyboardHeight);
@@ -1534,6 +1530,30 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 }
             }
         );
+    }
+
+    /**
+     * Extract the actual keyboard height from WindowInsets.
+     * The IME bottom inset includes the navigation bar area, so we
+     * subtract it to get the keyboard-only height.
+     *
+     * In fullscreen/immersive mode the navigation bar is hidden, so
+     * getInsets(navigationBars) returns 0.  We use
+     * getInsetsIgnoringVisibility() instead, which reports the nav bar
+     * size even when it is hidden.
+     */
+    @SuppressWarnings("NewApi")
+    protected static int getKeyboardHeightFromInsets(WindowInsets insets) {
+        if (!insets.isVisible(WindowInsets.Type.ime())) {
+            return 0;
+        }
+        int imeBottom = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        int navBottom = insets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.navigationBars()).bottom;
+        int kbHeight = imeBottom - navBottom;
+        Log.v(TAG, "getKeyboardHeightFromInsets: ime=" + imeBottom +
+              " nav(ignoringVis)=" + navBottom + " kb=" + kbHeight);
+        return (kbHeight > 0) ? kbHeight : 0;
     }
 
     /**
