@@ -1524,6 +1524,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * The text input rect arrives in screen pixel coordinates (converted
      * from render coordinates on the C side), so we compare directly
      * against the keyboard position in pixels.
+     *
+     * We use an expanded keyboard zone (150% of actual keyboard height)
+     * to provide a comfort margin above the keyboard.  This ensures the
+     * text field ends up with breathing room, matching the effective
+     * behaviour of iOS where a coordinate-space asymmetry causes it to
+     * pan more eagerly than a pure "obscured" check would.
      */
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
@@ -1535,7 +1541,16 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
             int rectBottom = mTextInputY + mTextInputH;
-            int keyboardTop = screenHeight - mKeyboardHeight;
+
+            /* Expand the avoidance zone to 150 % of the real keyboard height
+               so that text fields slightly above the keyboard are still panned
+               into a comfortable viewing position. */
+            int effectiveKeyboardHeight = mKeyboardHeight + mKeyboardHeight / 2;
+            int keyboardTop = screenHeight - effectiveKeyboardHeight;
+            if (keyboardTop < 0) {
+                keyboardTop = 0;
+            }
+
             if (rectBottom > keyboardTop) {
                 panY = keyboardTop - rectBottom;
             }
