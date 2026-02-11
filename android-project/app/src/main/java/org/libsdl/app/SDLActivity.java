@@ -45,6 +45,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -495,23 +496,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
 
-        // Set up keyboard height detection using global layout listener
-        mLayout.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                Rect visibleRect = new Rect();
-                mLayout.getWindowVisibleDisplayFrame(visibleRect);
-                int screenHeight = mLayout.getRootView().getHeight();
-                int keyboardHeight = screenHeight - visibleRect.bottom;
-                if (keyboardHeight > screenHeight * 0.15) {
-                    // Keyboard is visible
-                    mKeyboardHeight = keyboardHeight;
-                } else {
-                    mKeyboardHeight = 0;
-                }
-                updateViewPan();
-            }
-        });
+        // Set up keyboard height detection using a PopupWindow.
+        // This works even in fullscreen/immersive mode because the popup has its own
+        // soft input mode that allows it to be resized by the keyboard.
+        setupKeyboardHeightDetector();
 
         // Get filename from "Open with" of another application
         Intent intent = getIntent();
@@ -1479,6 +1467,46 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     public static boolean showTextInput(int input_type, int x, int y, int w, int h) {
         // Transfer the task to the main thread as a Runnable
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));
+    }
+
+    /**
+     * Set up a PopupWindow-based keyboard height detector.
+     * The popup window has its own soft input mode and will be resized by the keyboard
+     * even when the main activity is in fullscreen/immersive mode.
+     */
+    protected void setupKeyboardHeightDetector() {
+        final View popupView = new View(this);
+        final PopupWindow popupWindow = new PopupWindow(popupView, 0, ViewGroup.LayoutParams.MATCH_PARENT);
+        popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
+                                      WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+
+        // We need to post the showAtLocation to avoid WindowManager$BadTokenException
+        mLayout.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mLayout != null && mLayout.getWindowToken() != null) {
+                    popupWindow.showAtLocation(mLayout, Gravity.NO_GRAVITY, 0, 0);
+
+                    popupView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            Rect popupRect = new Rect();
+                            popupView.getWindowVisibleDisplayFrame(popupRect);
+
+                            int screenHeight = popupView.getRootView().getHeight();
+                            int keyboardHeight = screenHeight - popupRect.bottom;
+                            if (keyboardHeight > screenHeight * 0.15) {
+                                mKeyboardHeight = keyboardHeight;
+                            } else {
+                                mKeyboardHeight = 0;
+                            }
+                            updateViewPan();
+                        }
+                    });
+                }
+            }
+        });
     }
 
     /**
