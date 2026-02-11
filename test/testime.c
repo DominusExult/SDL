@@ -474,7 +474,7 @@ static void InitInput(WindowState *ctx)
 {
     /* Prepare a rect for text input */
     ctx->textRect.x = 100.0f;
-	ctx->textRect.y = 200.0f;
+	ctx->textRect.y = 250.0f;
     ctx->textRect.w = DEFAULT_WINDOW_WIDTH - 2 * ctx->textRect.x;
     ctx->textRect.h = 50.0f;
     ctx->markedRect = ctx->textRect;
@@ -660,13 +660,23 @@ static void DrawCandidates(WindowState *ctx, SDL_FRect *cursorRect)
 static void UpdateTextInputArea(WindowState *ctx, const SDL_FRect *cursorRect)
 {
     SDL_Rect rect;
-    int cursor_offset = (int)(cursorRect->x - ctx->textRect.x);
+    float win_x, win_y, win_x2, win_y2, win_cursor_x, win_text_x;
 
-    rect.x = (int)ctx->textRect.x;
-    rect.y = (int)ctx->textRect.y;
-    rect.w = (int)ctx->textRect.w;
-    rect.h = (int)ctx->textRect.h;
-    SDL_SetTextInputArea(ctx->window, &rect, cursor_offset);
+    /* Convert from render (logical) coordinates to window coordinates,
+       since SDL_SetTextInputArea expects window coordinates. */
+    SDL_RenderCoordinatesToWindow(ctx->renderer, ctx->textRect.x, ctx->textRect.y, &win_x, &win_y);
+    SDL_RenderCoordinatesToWindow(ctx->renderer, ctx->textRect.x + ctx->textRect.w, ctx->textRect.y + ctx->textRect.h, &win_x2, &win_y2);
+
+    rect.x = (int)win_x;
+    rect.y = (int)win_y;
+    rect.w = (int)(win_x2 - win_x);
+    rect.h = (int)(win_y2 - win_y);
+
+    /* Convert cursor position to window coordinates */
+    SDL_RenderCoordinatesToWindow(ctx->renderer, cursorRect->x, 0, &win_cursor_x, NULL);
+    SDL_RenderCoordinatesToWindow(ctx->renderer, ctx->textRect.x, 0, &win_text_x, NULL);
+
+    SDL_SetTextInputArea(ctx->window, &rect, (int)(win_cursor_x - win_text_x));
 }
 
 static void CleanupVideo(void)

@@ -38,6 +38,7 @@ import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.graphics.Rect;
 import android.view.inputmethod.InputConnection;
@@ -342,6 +343,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         mTextInputY = 0;
         mTextInputW = 0;
         mTextInputH = 0;
+        mSDLWindowH = 0;
     }
 
     protected SDLSurface createSDLSurface(Context context) {
@@ -496,10 +498,15 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
 
-        // Set up keyboard height detection using a PopupWindow.
-        // This works even in fullscreen/immersive mode because the popup has its own
-        // soft input mode that allows it to be resized by the keyboard.
-        setupKeyboardHeightDetector();
+        // Set up keyboard height detection.
+        // On API 30+ we use WindowInsets.Type.ime() via a decor view listener
+        // to detect keyboard height even in fullscreen/immersive mode.
+        // On older APIs we use a PopupWindow trick with SOFT_INPUT_ADJUST_RESIZE.
+        if (Build.VERSION.SDK_INT >= 30) {
+            setupKeyboardInsetsListener();
+        } else {
+            setupKeyboardHeightDetector();
+        }
 
         // Get filename from "Open with" of another application
         Intent intent = getIntent();
@@ -890,6 +897,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /* Keyboard pan&scan support */
     protected static int mKeyboardHeight;
     protected static int mTextInputX, mTextInputY, mTextInputW, mTextInputH;
+    protected static int mSDLWindowH;
 
     /**
      * This method is called by SDL if SDL did not handle a message itself.
@@ -1470,23 +1478,70 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     }
 
     /**
-     * Set up a PopupWindow-based keyboard height detector.
-     * The popup window has its own soft input mode and will be resized by the keyboard
-     * even when the main activity is in fullscreen/immersive mode.
+     * Set up keyboard height tracking via WindowInsetsAnimation.Callback (API 30+ only).
+     * This reliably detects the IME height even in fullscreen/immersive mode.
+     */
+    /**
+     * Set up keyboard height tracking for API 30+ using multiple detection methods:
+     * 1. setDecorFitsSystemWindows(false) so insets are dispatched to our views
+     * 2. OnApplyWindowInsetsListener on the decor view to catch IME insets
+     * 3. OnGlobalLayoutListener as a fallback to poll getRootWindowInsets()
+     */
+    @SuppressWarnings("NewApi")
+    protected void setupKeyboardInsetsListener() {
+        final Window window = getWindow();
+
+        // Allow IME insets to flow through to our views
+        window.setDecorFitsSystemWindows(false);
+
+        // Primary: listen for insets on the decor view (always receives raw insets)
+        final View decorView = window.getDecorView();
+        decorView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+                boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
+                int imeHeight = imeVisible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0;
+                onKeyboardInsetsChanged(imeHeight);
+                // Let the default handling continue for other insets
+                return v.onApplyWindowInsets(insets);
+            }
+        });
+
+        // Fallback: poll getRootWindowInsets() on layout changes
+        decorView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                WindowInsets insets = decorView.getRootWindowInsets();
+                if (insets != null) {
+                    boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
+                    int imeHeight = imeVisible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0;
+                    onKeyboardInsetsChanged(imeHeight);
+                }
+            }
+        });
+    }
+
+    /**
+     * Set up a PopupWindow-based keyboard height detector (pre-API 30 only).
+     * On API 30+ setupKeyboardInsetsListener() is used instead.
      */
     protected void setupKeyboardHeightDetector() {
         final View popupView = new View(this);
-        final PopupWindow popupWindow = new PopupWindow(popupView, 0, ViewGroup.LayoutParams.MATCH_PARENT);
+        popupView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final PopupWindow popupWindow = new PopupWindow(popupView, 1, ViewGroup.LayoutParams.MATCH_PARENT);
         popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
                                       WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
         popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
 
-        // We need to post the showAtLocation to avoid WindowManager$BadTokenException
         mLayout.post(new Runnable() {
             @Override
             public void run() {
                 if (mLayout != null && mLayout.getWindowToken() != null) {
-                    popupWindow.showAtLocation(mLayout, Gravity.NO_GRAVITY, 0, 0);
+                    try {
+                        popupWindow.showAtLocation(mLayout, Gravity.NO_GRAVITY, 0, 0);
+                    } catch (Exception e) {
+                        return;
+                    }
 
                     popupView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
                         @Override
@@ -1496,12 +1551,14 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
                             int screenHeight = popupView.getRootView().getHeight();
                             int keyboardHeight = screenHeight - popupRect.bottom;
-                            if (keyboardHeight > screenHeight * 0.15) {
-                                mKeyboardHeight = keyboardHeight;
-                            } else {
-                                mKeyboardHeight = 0;
+
+                            int newHeight = (keyboardHeight > screenHeight * 0.15) ? keyboardHeight : 0;
+
+                            if (newHeight != mKeyboardHeight) {
+                                mKeyboardHeight = newHeight;
+                                Log.v(TAG, "PopupWindow: keyboard height changed to " + mKeyboardHeight);
+                                updateViewPan();
                             }
-                            updateViewPan();
                         }
                     });
                 }
@@ -1510,23 +1567,50 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     }
 
     /**
+     * Called from SDLSurface.onApplyWindowInsets on API 30+ when IME insets change.
+     */
+    public static void onKeyboardInsetsChanged(int imeHeight) {
+        if (imeHeight != mKeyboardHeight) {
+            mKeyboardHeight = imeHeight;
+            Log.v(TAG, "IME insets: keyboard height changed to " + mKeyboardHeight);
+            updateViewPan();
+        }
+    }
+
+    /**
      * Update the view pan/scroll to keep the text input area visible
      * above the on-screen keyboard, similar to iOS behavior.
+     *
+     * The text input rect is in SDL window coordinates. We scale these to
+     * screen pixel coordinates using the SDL window height for comparison
+     * against the keyboard position.
      */
     protected static void updateViewPan() {
-        if (mLayout == null) {
+        if (mLayout == null || mSurface == null) {
             return;
         }
 
         float panY = 0.0f;
 
-        if (mKeyboardHeight > 0 && mTextInputH > 0) {
-            int rectBottom = mTextInputY + mTextInputH;
-            int screenHeight = mLayout.getRootView().getHeight();
+        if (mKeyboardHeight > 0 && mTextInputH > 0 && mSDLWindowH > 0) {
+            int screenHeight = mSurface.getHeight();
+
+            // Scale from SDL window coordinates to screen pixels
+            float scaleY = (float) screenHeight / mSDLWindowH;
+            int rectBottomPx = (int) ((mTextInputY + mTextInputH) * scaleY);
+
             int keyboardTop = screenHeight - mKeyboardHeight;
-            if (rectBottom > keyboardTop) {
-                panY = keyboardTop - rectBottom;
+            if (rectBottomPx > keyboardTop) {
+                panY = keyboardTop - rectBottomPx;
             }
+        }
+
+        if (mLayout.getTranslationY() != panY) {
+            Log.v(TAG, "updateViewPan: panY=" + panY +
+                  " kbH=" + mKeyboardHeight +
+                  " screenH=" + (mSurface != null ? mSurface.getHeight() : 0) +
+                  " sdlWinH=" + mSDLWindowH +
+                  " sdlRect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
         }
 
         mLayout.setTranslationY(panY);
@@ -1535,7 +1619,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     /**
      * This method is called by SDL using JNI to update the text input area.
      */
-    public static void updateTextInputArea(int x, int y, int w, int h) {
+    public static void updateTextInputArea(int x, int y, int w, int h, int windowH) {
         // Transfer the task to the main thread as a Runnable
         mSingleton.commandHandler.post(new Runnable() {
             @Override
@@ -1544,6 +1628,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 mTextInputY = y;
                 mTextInputW = w;
                 mTextInputH = h;
+                mSDLWindowH = windowH;
 
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;

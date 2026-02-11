@@ -451,8 +451,15 @@ void Android_HideScreenKeyboard(SDL_VideoDevice *_this, SDL_Window *window)
 
 bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
 {
-    if (_this->screen_keyboard_shown) {
-        Android_JNI_UpdateTextInputArea(&window->text_input_rect);
+    static SDL_Rect last_rect = {0, 0, 0, 0};
+    SDL_Rect *r = &window->text_input_rect;
+
+    /* Only forward to JNI when the rect actually changes,
+       since SDL_SetTextInputArea() is called every frame. */
+    if (r->x != last_rect.x || r->y != last_rect.y ||
+        r->w != last_rect.w || r->h != last_rect.h) {
+        last_rect = *r;
+        Android_JNI_UpdateTextInputArea(window, r);
     }
     return true;
 }
