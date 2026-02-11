@@ -489,6 +489,10 @@ bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
         }
 
         Android_JNI_UpdateTextInputArea(&windowRect);
+        SDL_Log("SDL UpdateTextInputArea: input=(%d,%d,%d,%d) -> pixel=(%d,%d,%d,%d) winSize=%dx%d",
+                r->x, r->y, r->w, r->h,
+                windowRect.x, windowRect.y, windowRect.w, windowRect.h,
+                window->w, window->h);
     }
     return true;
 }

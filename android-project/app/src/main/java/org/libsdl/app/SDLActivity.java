@@ -1466,6 +1466,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI.
      */
     public static boolean showTextInput(int input_type, int x, int y, int w, int h) {
+        Log.v(TAG, "showTextInput called: type=" + input_type + " x=" + x + " y=" + y + " w=" + w + " h=" + h);
         // Transfer the task to the main thread as a Runnable
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));
     }
@@ -1554,13 +1555,18 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             if (rectBottom > keyboardTop) {
                 panY = keyboardTop - rectBottom;
             }
-        }
 
-        if (mLayout.getTranslationY() != panY) {
-            Log.v(TAG, "updateViewPan: panY=" + panY +
-                  " kbH=" + mKeyboardHeight +
-                  " screenH=" + mSurface.getHeight() +
+            Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
+                  " effKbH=" + effectiveKeyboardHeight +
+                  " screenH=" + screenHeight +
+                  " rectBot=" + rectBottom +
+                  " kbTop=" + keyboardTop +
+                  " panY=" + panY +
+                  " surfaceW=" + mSurface.getWidth() +
+                  " surfaceH=" + mSurface.getHeight() +
                   " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
+        } else {
+            Log.v(TAG, "updateViewPan: SKIPPED kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
         }
 
         mLayout.setTranslationY(panY);
@@ -1570,6 +1576,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI to update the text input area.
      */
     public static void updateTextInputArea(int x, int y, int w, int h) {
+        Log.v(TAG, "updateTextInputArea called: x=" + x + " y=" + y + " w=" + w + " h=" + h);
         // Transfer the task to the main thread as a Runnable
         mSingleton.commandHandler.post(new Runnable() {
             @Override
