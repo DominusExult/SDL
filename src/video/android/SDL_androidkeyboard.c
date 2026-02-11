@@ -442,23 +442,35 @@ void Android_ShowScreenKeyboard(SDL_VideoDevice *_this, SDL_Window *window, SDL_
         }
     }
     Android_JNI_ShowScreenKeyboard(input_type, &window->text_input_rect);
+
+    /* Reset the dedup cache so the next SDL_SetTextInputArea call
+     * (which runs every frame) will re-send the rect to Java with
+     * proper render-to-window coordinate conversion. */
+    Android_ResetTextInputArea();
 }
 
 void Android_HideScreenKeyboard(SDL_VideoDevice *_this, SDL_Window *window)
 {
     Android_JNI_HideScreenKeyboard();
+    Android_ResetTextInputArea();
+}
+
+static SDL_Rect s_lastTextInputRect = {0, 0, 0, 0};
+
+void Android_ResetTextInputArea(void)
+{
+    SDL_zero(s_lastTextInputRect);
 }
 
 bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
 {
-    static SDL_Rect last_rect = {0, 0, 0, 0};
     SDL_Rect *r = &window->text_input_rect;
 
     /* Only forward to JNI when the rect actually changes,
        since SDL_SetTextInputArea() is called every frame. */
-    if (r->x != last_rect.x || r->y != last_rect.y ||
-        r->w != last_rect.w || r->h != last_rect.h) {
-        last_rect = *r;
+    if (r->x != s_lastTextInputRect.x || r->y != s_lastTextInputRect.y ||
+        r->w != s_lastTextInputRect.w || r->h != s_lastTextInputRect.h) {
+        s_lastTextInputRect = *r;
 
         /* Convert from render/logical coordinates to window (pixel) coordinates.
          * Apps typically pass coordinates in the renderer's coordinate space

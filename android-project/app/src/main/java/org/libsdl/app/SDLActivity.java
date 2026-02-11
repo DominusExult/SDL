@@ -38,7 +38,6 @@ import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.graphics.Rect;
 import android.view.inputmethod.InputConnection;
@@ -497,15 +496,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
 
-        // Set up keyboard height detection.
-        // On API 30+ we use WindowInsets.Type.ime() via a decor view listener
-        // to detect keyboard height even in fullscreen/immersive mode.
-        // On older APIs we use a PopupWindow trick with SOFT_INPUT_ADJUST_RESIZE.
-        if (Build.VERSION.SDK_INT >= 30) {
-            setupKeyboardInsetsListener();
-        } else {
-            setupKeyboardHeightDetector();
-        }
+        // Set up keyboard height detection using a PopupWindow.
+        // The PopupWindow has its own window with SOFT_INPUT_ADJUST_RESIZE,
+        // so it is reliably resized every time the keyboard shows/hides,
+        // even when the main activity is in fullscreen/immersive mode.
+        setupKeyboardHeightDetector();
 
         // Get filename from "Open with" of another application
         Intent intent = getIntent();
@@ -1476,52 +1471,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     }
 
     /**
-     * Set up keyboard height tracking via WindowInsetsAnimation.Callback (API 30+ only).
-     * This reliably detects the IME height even in fullscreen/immersive mode.
-     */
-    /**
-     * Set up keyboard height tracking for API 30+ using multiple detection methods:
-     * 1. setDecorFitsSystemWindows(false) so insets are dispatched to our views
-     * 2. OnApplyWindowInsetsListener on the decor view to catch IME insets
-     * 3. OnGlobalLayoutListener as a fallback to poll getRootWindowInsets()
-     */
-    @SuppressWarnings("NewApi")
-    protected void setupKeyboardInsetsListener() {
-        final Window window = getWindow();
-
-        // Allow IME insets to flow through to our views
-        window.setDecorFitsSystemWindows(false);
-
-        // Primary: listen for insets on the decor view (always receives raw insets)
-        final View decorView = window.getDecorView();
-        decorView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override
-            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
-                boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
-                int imeHeight = imeVisible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0;
-                onKeyboardInsetsChanged(imeHeight);
-                // Let the default handling continue for other insets
-                return v.onApplyWindowInsets(insets);
-            }
-        });
-
-        // Fallback: poll getRootWindowInsets() on layout changes
-        decorView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                WindowInsets insets = decorView.getRootWindowInsets();
-                if (insets != null) {
-                    boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
-                    int imeHeight = imeVisible ? insets.getInsets(WindowInsets.Type.ime()).bottom : 0;
-                    onKeyboardInsetsChanged(imeHeight);
-                }
-            }
-        });
-    }
-
-    /**
-     * Set up a PopupWindow-based keyboard height detector (pre-API 30 only).
-     * On API 30+ setupKeyboardInsetsListener() is used instead.
+     * Set up a PopupWindow-based keyboard height detector.
+     * The PopupWindow has its own window with SOFT_INPUT_ADJUST_RESIZE so its
+     * visible frame reliably changes every time the soft keyboard shows or hides,
+     * even when the main activity is in fullscreen/immersive mode.
      */
     protected void setupKeyboardHeightDetector() {
         final View popupView = new View(this);
@@ -1562,17 +1515,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 }
             }
         });
-    }
-
-    /**
-     * Called from SDLSurface.onApplyWindowInsets on API 30+ when IME insets change.
-     */
-    public static void onKeyboardInsetsChanged(int imeHeight) {
-        if (imeHeight != mKeyboardHeight) {
-            mKeyboardHeight = imeHeight;
-            Log.v(TAG, "IME insets: keyboard height changed to " + mKeyboardHeight);
-            updateViewPan();
-        }
     }
 
     /**
