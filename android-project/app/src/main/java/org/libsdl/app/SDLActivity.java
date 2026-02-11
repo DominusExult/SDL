@@ -39,6 +39,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.graphics.Rect;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
@@ -335,6 +336,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         mHasFocus = true;
         mNextNativeState = NativeState.INIT;
         mCurrentNativeState = NativeState.INIT;
+        mKeyboardHeight = 0;
+        mTextInputX = 0;
+        mTextInputY = 0;
+        mTextInputW = 0;
+        mTextInputH = 0;
     }
 
     protected SDLSurface createSDLSurface(Context context) {
@@ -488,6 +494,24 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         setWindowStyle(false);
 
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(this);
+
+        // Set up keyboard height detection using global layout listener
+        mLayout.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                Rect visibleRect = new Rect();
+                mLayout.getWindowVisibleDisplayFrame(visibleRect);
+                int screenHeight = mLayout.getRootView().getHeight();
+                int keyboardHeight = screenHeight - visibleRect.bottom;
+                if (keyboardHeight > screenHeight * 0.15) {
+                    // Keyboard is visible
+                    mKeyboardHeight = keyboardHeight;
+                } else {
+                    mKeyboardHeight = 0;
+                }
+                updateViewPan();
+            }
+        });
 
         // Get filename from "Open with" of another application
         Intent intent = getIntent();
@@ -875,6 +899,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
     protected static boolean mFullscreenModeActive;
 
+    /* Keyboard pan&scan support */
+    protected static int mKeyboardHeight;
+    protected static int mTextInputX, mTextInputY, mTextInputW, mTextInputH;
+
     /**
      * This method is called by SDL if SDL did not handle a message itself.
      * This happens if a received message contains an unsupported command.
@@ -953,6 +981,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                     imm.hideSoftInputFromWindow(mTextEdit.getWindowToken(), 0);
 
                     onNativeScreenKeyboardHidden();
+
+                    mTextInputH = 0;
+                    updateViewPan();
 
                     mSurface.requestFocus();
                 }
@@ -1427,6 +1458,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             mTextEdit.setVisibility(View.VISIBLE);
             mTextEdit.requestFocus();
 
+            /* Store the text input rect for keyboard pan calculations */
+            mTextInputX = x;
+            mTextInputY = y;
+            mTextInputW = w;
+            mTextInputH = h;
+
             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
             imm.showSoftInput(mTextEdit, 0);
 
@@ -1444,40 +1481,27 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));
     }
 
-    static class UpdateTextInputAreaTask implements Runnable {
-        /*
-         * This is used to regulate the pan&scan method to have some offset from
-         * the bottom edge of the input region and the top edge of an input
-         * method (soft keyboard)
-         */
-        static final int HEIGHT_PADDING = 15;
+    /**
+     * Update the view pan/scroll to keep the text input area visible
+     * above the on-screen keyboard, similar to iOS behavior.
+     */
+    protected static void updateViewPan() {
+        if (mLayout == null) {
+            return;
+        }
 
-        public int x, y, w, h;
+        float panY = 0.0f;
 
-        public UpdateTextInputAreaTask(int x, int y, int w, int h) {
-            this.x = x;
-            this.y = y;
-            this.w = w;
-            this.h = h;
-
-            /* Minimum size of 1 pixel, so it takes focus. */
-            if (this.w <= 0) {
-                this.w = 1;
-            }
-            if (this.h + HEIGHT_PADDING <= 0) {
-                this.h = 1 - HEIGHT_PADDING;
+        if (mKeyboardHeight > 0 && mTextInputH > 0) {
+            int rectBottom = mTextInputY + mTextInputH;
+            int screenHeight = mLayout.getRootView().getHeight();
+            int keyboardTop = screenHeight - mKeyboardHeight;
+            if (rectBottom > keyboardTop) {
+                panY = keyboardTop - rectBottom;
             }
         }
 
-        @Override
-        public void run() {
-            if (mTextEdit != null) {
-                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + HEIGHT_PADDING);
-                params.leftMargin = x;
-                params.topMargin = y;
-                mTextEdit.setLayoutParams(params);
-            }
-        }
+        mLayout.setTranslationY(panY);
     }
 
     /**
@@ -1485,7 +1509,26 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     public static void updateTextInputArea(int x, int y, int w, int h) {
         // Transfer the task to the main thread as a Runnable
-        mSingleton.commandHandler.post(new UpdateTextInputAreaTask(x, y, w, h));
+        mSingleton.commandHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mTextInputX = x;
+                mTextInputY = y;
+                mTextInputW = w;
+                mTextInputH = h;
+
+                if (mTextEdit != null) {
+                    int ew = (w > 0) ? w : 1;
+                    int eh = (h > 0) ? h : 1;
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh);
+                    params.leftMargin = x;
+                    params.topMargin = y;
+                    mTextEdit.setLayoutParams(params);
+                }
+
+                updateViewPan();
+            }
+        });
     }
 
     public static boolean isTextInputEvent(KeyEvent event) {
