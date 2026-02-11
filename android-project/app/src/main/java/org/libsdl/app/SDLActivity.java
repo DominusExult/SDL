@@ -38,7 +38,10 @@ import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsAnimation;
 import android.view.WindowManager;
+import android.graphics.Insets;
 import android.graphics.Rect;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
@@ -53,6 +56,7 @@ import android.widget.Toast;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Locale;
 
 
@@ -1472,17 +1476,76 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     }
 
     /**
-     * Set up a PopupWindow-based keyboard height detector.
-     * The PopupWindow has its own window with SOFT_INPUT_ADJUST_RESIZE so its
-     * visible frame reliably changes every time the soft keyboard shows or hides,
-     * even when the main activity is in fullscreen/immersive mode.
+     * Set up keyboard height detection.
+     *
+     * On API 30+ we use WindowInsetsAnimation which reliably reports IME
+     * (keyboard) insets even when the activity is in fullscreen / immersive
+     * mode.  The older PopupWindow + SOFT_INPUT_ADJUST_RESIZE trick no
+     * longer works because that flag was deprecated in API 30.
+     *
+     * On older APIs we fall back to the PopupWindow approach.
      */
     protected void setupKeyboardHeightDetector() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setupKeyboardDetectorAPI30();
+        } else {
+            setupKeyboardDetectorLegacy();
+        }
+    }
+
+    /**
+     * API 30+ keyboard detection using WindowInsetsAnimation.
+     */
+    @SuppressWarnings("NewApi")
+    protected void setupKeyboardDetectorAPI30() {
+        mLayout.setWindowInsetsAnimationCallback(
+            new WindowInsetsAnimation.Callback(WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP) {
+                @Override
+                public WindowInsets onProgress(WindowInsets insets,
+                                               List<WindowInsetsAnimation> runningAnimations) {
+                    int imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom;
+                    boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
+                    int newHeight = imeVisible ? imeHeight : 0;
+                    if (newHeight != mKeyboardHeight) {
+                        mKeyboardHeight = newHeight;
+                        Log.v(TAG, "WindowInsetsAnim: keyboard height = " + mKeyboardHeight);
+                        updateViewPan();
+                    }
+                    return insets;
+                }
+
+                @Override
+                public void onEnd(WindowInsetsAnimation animation) {
+                    super.onEnd(animation);
+                    WindowInsets insets = mLayout.getRootWindowInsets();
+                    if (insets != null) {
+                        int imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom;
+                        boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
+                        int newHeight = imeVisible ? imeHeight : 0;
+                        if (newHeight != mKeyboardHeight) {
+                            mKeyboardHeight = newHeight;
+                            Log.v(TAG, "WindowInsetsAnim onEnd: keyboard height = " + mKeyboardHeight);
+                            updateViewPan();
+                        }
+                    }
+                }
+            }
+        );
+    }
+
+    /**
+     * Pre-API 30 keyboard detection using a PopupWindow with
+     * SOFT_INPUT_ADJUST_RESIZE.
+     */
+    protected void setupKeyboardDetectorLegacy() {
         final View popupView = new View(this);
-        popupView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        final PopupWindow popupWindow = new PopupWindow(popupView, 1, ViewGroup.LayoutParams.MATCH_PARENT);
-        popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
-                                      WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        popupView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final PopupWindow popupWindow = new PopupWindow(popupView, 1,
+                ViewGroup.LayoutParams.MATCH_PARENT);
+        popupWindow.setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
         popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
 
         mLayout.post(new Runnable() {
@@ -1492,27 +1555,30 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                     try {
                         popupWindow.showAtLocation(mLayout, Gravity.NO_GRAVITY, 0, 0);
                     } catch (Exception e) {
+                        Log.w(TAG, "PopupWindow keyboard detector failed: " + e.getMessage());
                         return;
                     }
 
-                    popupView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                        @Override
-                        public void onGlobalLayout() {
-                            Rect popupRect = new Rect();
-                            popupView.getWindowVisibleDisplayFrame(popupRect);
+                    popupView.getViewTreeObserver().addOnGlobalLayoutListener(
+                        new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                            @Override
+                            public void onGlobalLayout() {
+                                Rect popupRect = new Rect();
+                                popupView.getWindowVisibleDisplayFrame(popupRect);
 
-                            int screenHeight = popupView.getRootView().getHeight();
-                            int keyboardHeight = screenHeight - popupRect.bottom;
+                                int screenHeight = popupView.getRootView().getHeight();
+                                int keyboardHeight = screenHeight - popupRect.bottom;
 
-                            int newHeight = (keyboardHeight > screenHeight * 0.15) ? keyboardHeight : 0;
+                                int newHeight = (keyboardHeight > screenHeight * 0.15)
+                                        ? keyboardHeight : 0;
 
-                            if (newHeight != mKeyboardHeight) {
-                                mKeyboardHeight = newHeight;
-                                Log.v(TAG, "PopupWindow: keyboard height changed to " + mKeyboardHeight);
-                                updateViewPan();
+                                if (newHeight != mKeyboardHeight) {
+                                    mKeyboardHeight = newHeight;
+                                    Log.v(TAG, "PopupWindow: keyboard height = " + mKeyboardHeight);
+                                    updateViewPan();
+                                }
                             }
-                        }
-                    });
+                        });
                 }
             }
         });
@@ -1525,12 +1591,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * The text input rect arrives in screen pixel coordinates (converted
      * from render coordinates on the C side), so we compare directly
      * against the keyboard position in pixels.
-     *
-     * We use an expanded keyboard zone (150% of actual keyboard height)
-     * to provide a comfort margin above the keyboard.  This ensures the
-     * text field ends up with breathing room, matching the effective
-     * behaviour of iOS where a coordinate-space asymmetry causes it to
-     * pan more eagerly than a pure "obscured" check would.
      */
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
@@ -1542,28 +1602,17 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
             int rectBottom = mTextInputY + mTextInputH;
-
-            /* Expand the avoidance zone to 150 % of the real keyboard height
-               so that text fields slightly above the keyboard are still panned
-               into a comfortable viewing position. */
-            int effectiveKeyboardHeight = mKeyboardHeight + mKeyboardHeight / 2;
-            int keyboardTop = screenHeight - effectiveKeyboardHeight;
-            if (keyboardTop < 0) {
-                keyboardTop = 0;
-            }
+            int keyboardTop = screenHeight - mKeyboardHeight;
 
             if (rectBottom > keyboardTop) {
                 panY = keyboardTop - rectBottom;
             }
 
             Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
-                  " effKbH=" + effectiveKeyboardHeight +
                   " screenH=" + screenHeight +
                   " rectBot=" + rectBottom +
                   " kbTop=" + keyboardTop +
                   " panY=" + panY +
-                  " surfaceW=" + mSurface.getWidth() +
-                  " surfaceH=" + mSurface.getHeight() +
                   " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")");
         } else {
             Log.v(TAG, "updateViewPan: SKIPPED kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
