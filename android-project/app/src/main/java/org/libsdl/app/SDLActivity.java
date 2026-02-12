@@ -1582,7 +1582,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                                 Rect popupRect = new Rect();
                                 popupView.getWindowVisibleDisplayFrame(popupRect);
 
-                                int screenHeight = popupView.getRootView().getHeight();
+                                /* Use the real display height, not the popup's root view
+                                 * which can be inconsistent in fullscreen mode. */
+                                android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+                                mSingleton.getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+                                int screenHeight = dm.heightPixels;
                                 int keyboardHeight = screenHeight - popupRect.bottom;
 
                                 int newHeight = (keyboardHeight > screenHeight * 0.15)
