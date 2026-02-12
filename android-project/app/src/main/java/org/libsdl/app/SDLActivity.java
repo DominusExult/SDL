@@ -1646,7 +1646,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
-            int rectBottom = mTextInputY + mTextInputH + PAN_PADDING;
+            int rectBottom = mTextInputY + mTextInputH;
             int keyboardTop = screenHeight - mKeyboardHeight;
 
             if (rectBottom > keyboardTop) {
@@ -1667,9 +1667,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
          * the view content when the keyboard appears. It shifts by the exact
          * amount needed to avoid the keyboard, but doesn't account for our
          * padding. Apply only the padding as additional translation.
-         * On older APIs we apply the full pan amount. */
+         * On older APIs we apply the full pan amount plus padding. */
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            mLayout.setTranslationY(panY);
+            if (panY < 0) {
+                mLayout.setTranslationY(panY - PAN_PADDING);
+            } else {
+                mLayout.setTranslationY(0);
+            }
         } else if (panY < 0) {
             mLayout.setTranslationY(-PAN_PADDING);
         } else {
