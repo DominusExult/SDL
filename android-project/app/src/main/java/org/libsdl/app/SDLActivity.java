@@ -1633,7 +1633,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * from render coordinates on the C side), so we compare directly
      * against the keyboard position in pixels.
      */
-    protected static final int PAN_PADDING = 0;
+    protected static final int PAN_PADDING = 80;
 
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
