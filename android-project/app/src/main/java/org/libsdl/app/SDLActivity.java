@@ -1427,8 +1427,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         @Override
         public void run() {
-            // Add PAN_PADDING to height so Android's auto-pan leaves breathing room above keyboard
-            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + PAN_PADDING);
+            // Add PAN_PADDING to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
+            // Fullscreen apps handle panning in updateViewPan() instead.
+            int heightPadding = mFullscreenModeActive ? 0 : PAN_PADDING;
+            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + heightPadding);
             params.leftMargin = x;
             params.topMargin = y;
 
@@ -1694,8 +1696,10 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;
                     int eh = (h > 0) ? h : 1;
-                    // Add PAN_PADDING to height so Android's auto-pan leaves breathing room above keyboard
-                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh + PAN_PADDING);
+                    // Add PAN_PADDING to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
+                    // Fullscreen apps handle panning in updateViewPan() instead.
+                    int heightPadding = mFullscreenModeActive ? 0 : PAN_PADDING;
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh + heightPadding);
                     params.leftMargin = x;
                     params.topMargin = y;
                     mTextEdit.setLayoutParams(params);
