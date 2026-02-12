@@ -1646,10 +1646,19 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         mTextInputW = w;
         mTextInputH = h;
 
-        // Post pan recalculation to the main thread
+        // Post UI updates and pan recalculation to the main thread
         mSingleton.commandHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (mTextEdit != null) {
+                    int ew = (w > 0) ? w : 1;
+                    int eh = (h > 0) ? h : 1;
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh);
+                    params.leftMargin = x;
+                    params.topMargin = y;
+                    mTextEdit.setLayoutParams(params);
+                }
+
                 updateViewPan();
             }
         });
