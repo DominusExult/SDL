@@ -629,6 +629,9 @@ static void SDLCALL SDL_HideHomeIndicatorHintChanged(void *userdata, const char 
         SDL_StopTextInput(window);
 }
 
+/* Extra pixels of breathing room above the keyboard */
+#define PAN_PADDING 80
+
 - (void)updateKeyboard
 {
     SDL_UIKitWindowData *data = (__bridge SDL_UIKitWindowData *) window->internal;
@@ -642,7 +645,11 @@ static void SDLCALL SDL_HideHomeIndicatorHintChanged(void *userdata, const char 
 #endif
 
     if (self.keyboardHeight && self.textInputRect.h) {
-        int rectbottom = (int)(self.textInputRect.y + self.textInputRect.h);
+        /* PAN_PADDING is in pixels (matching Android). The text input rect
+         * and view bounds are in UIKit points, so divide by the scale factor
+         * to keep the visual gap consistent across platforms. */
+        int padding = (int)(PAN_PADDING / self.view.contentScaleFactor);
+        int rectbottom = (int)(self.textInputRect.y + self.textInputRect.h + padding);
         int keybottom = (int)(self.view.bounds.size.height - self.keyboardHeight);
         if (keybottom < rectbottom) {
             offset.y = keybottom - rectbottom;
