@@ -647,12 +647,6 @@ static void SDLCALL SDL_HideHomeIndicatorHintChanged(void *userdata, const char 
         if (keybottom < rectbottom) {
             offset.y = keybottom - rectbottom;
         }
-        SDL_Log("iOS updateKeyboard: kbH=%d viewH=%d rectBot=%d kbTop=%d offset.y=%f",
-                (int)self.keyboardHeight, (int)self.view.bounds.size.height,
-                rectbottom, keybottom, offset.y);
-    } else {
-        SDL_Log("iOS updateKeyboard: SKIPPED kbH=%d textH=%d",
-                (int)self.keyboardHeight, (int)self.textInputRect.h);
     }
 
     /* Apply this view's transform (except any translation) to the offset, in

@@ -1470,7 +1470,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI.
      */
     public static boolean showTextInput(int input_type, int x, int y, int w, int h) {
-        Log.v(TAG, "showTextInput called: type=" + input_type + " x=" + x + " y=" + y + " w=" + w + " h=" + h);
         // Transfer the task to the main thread as a Runnable
         return mSingleton.commandHandler.post(new ShowTextInputTask(input_type, x, y, w, h));
     }
@@ -1506,7 +1505,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                     int newHeight = getKeyboardHeightFromInsets(insets);
                     if (newHeight != mKeyboardHeight) {
                         mKeyboardHeight = newHeight;
-                        Log.v(TAG, "WindowInsetsAnim: keyboard height = " + mKeyboardHeight);
                         updateViewPan();
                     }
                     return insets;
@@ -1520,7 +1518,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                         int newHeight = getKeyboardHeightFromInsets(insets);
                         if (newHeight != mKeyboardHeight) {
                             mKeyboardHeight = newHeight;
-                            Log.v(TAG, "WindowInsetsAnim onEnd: keyboard height = " + mKeyboardHeight);
                         }
                     }
                     /* Always re-evaluate pan at the end of the animation.
@@ -1551,8 +1548,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         int navBottom = insets.getInsetsIgnoringVisibility(
                 WindowInsets.Type.navigationBars()).bottom;
         int kbHeight = imeBottom - navBottom;
-        Log.v(TAG, "getKeyboardHeightFromInsets: ime=" + imeBottom +
-              " nav(ignoringVis)=" + navBottom + " kb=" + kbHeight);
         return (kbHeight > 0) ? kbHeight : 0;
     }
 
@@ -1597,7 +1592,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
                                 if (newHeight != mKeyboardHeight) {
                                     mKeyboardHeight = newHeight;
-                                    Log.v(TAG, "PopupWindow: keyboard height = " + mKeyboardHeight);
                                     updateViewPan();
                                 }
                             }
@@ -1630,14 +1624,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             if (rectBottom > keyboardTop) {
                 panY = keyboardTop - rectBottom;
             }
-
-            Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
-                  " screenH=" + screenHeight +
-                  " rectBot=" + rectBottom +
-                  " kbTop=" + keyboardTop +
-                  " panY=" + panY);
-        } else {
-            Log.v(TAG, "updateViewPan: SKIPPED kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
         }
 
         /* On API 30+, WindowInsetsAnimation automatically handles shifting
@@ -1653,8 +1639,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * This method is called by SDL using JNI to update the text input area.
      */
     public static void updateTextInputArea(int x, int y, int w, int h) {
-        Log.v(TAG, "updateTextInputArea called: x=" + x + " y=" + y + " w=" + w + " h=" + h);
-
         /* Update fields immediately so that WindowInsetsAnimation
          * callbacks (which run during view traversal, BEFORE any
          * Handler messages) can see the current text input rect. */
