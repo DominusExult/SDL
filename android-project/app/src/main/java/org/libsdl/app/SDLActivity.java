@@ -1427,7 +1427,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         @Override
         public void run() {
-            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h);
+            // Add PAN_PADDING to height so Android's auto-pan leaves breathing room above keyboard
+            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + PAN_PADDING);
             params.leftMargin = x;
             params.topMargin = y;
 
@@ -1522,6 +1523,21 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 }
             }
         );
+
+        /* Fallback: OnApplyWindowInsetsListener catches insets even when
+         * WindowInsetsAnimation doesn't fire (e.g. non-fullscreen apps). */
+        mLayout.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+                int newHeight = getKeyboardHeightFromInsets(insets);
+                Log.v(TAG, "OnApplyWindowInsets: kbH=" + newHeight);
+                if (newHeight != mKeyboardHeight) {
+                    mKeyboardHeight = newHeight;
+                    updateViewPan();
+                }
+                return v.onApplyWindowInsets(insets);
+            }
+        });
     }
 
     /**
@@ -1609,13 +1625,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
     /**
      * Update the view pan/scroll to keep the text input area visible
-     * above the on-screen keyboard, similar to iOS behavior.
+     * above the on-screen keyboard.
      *
      * The text input rect arrives in screen pixel coordinates (converted
      * from render coordinates on the C side), so we compare directly
      * against the keyboard position in pixels.
      */
-    protected static final int PAN_PADDING = 80;
+    protected static final int PAN_PADDING = 20;
 
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
@@ -1678,7 +1694,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;
                     int eh = (h > 0) ? h : 1;
-                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh);
+                    // Add PAN_PADDING to height so Android's auto-pan leaves breathing room above keyboard
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh + PAN_PADDING);
                     params.leftMargin = x;
                     params.topMargin = y;
                     mTextEdit.setLayoutParams(params);
