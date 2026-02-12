@@ -1492,13 +1492,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      */
     @SuppressWarnings("NewApi")
     protected void setupKeyboardDetectorAPI30() {
-        Log.v(TAG, "setupKeyboardDetectorAPI30: setting callback on mLayout");
         mLayout.setWindowInsetsAnimationCallback(
             new WindowInsetsAnimation.Callback(WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP) {
                 @Override
                 public WindowInsets onProgress(WindowInsets insets,
                                                List<WindowInsetsAnimation> runningAnimations) {
-                    Log.v(TAG, "WindowInsetsAnimation.onProgress called");
                     int newHeight = getKeyboardHeightFromInsets(insets);
                     if (newHeight != mKeyboardHeight) {
                         mKeyboardHeight = newHeight;
@@ -1509,7 +1507,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
                 @Override
                 public void onEnd(WindowInsetsAnimation animation) {
-                    Log.v(TAG, "WindowInsetsAnimation.onEnd called");
                     super.onEnd(animation);
                     WindowInsets insets = mLayout.getRootWindowInsets();
                     if (insets != null) {
@@ -1532,7 +1529,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             @Override
             public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
                 int newHeight = getKeyboardHeightFromInsets(insets);
-                Log.v(TAG, "OnApplyWindowInsets: kbH=" + newHeight);
                 if (newHeight != mKeyboardHeight) {
                     mKeyboardHeight = newHeight;
                     updateViewPan();
@@ -1555,15 +1551,13 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
     @SuppressWarnings("NewApi")
     protected static int getKeyboardHeightFromInsets(WindowInsets insets) {
         boolean imeVisible = insets.isVisible(WindowInsets.Type.ime());
+        if (!imeVisible) {
+            return 0;
+        }
         int imeBottom = insets.getInsets(WindowInsets.Type.ime()).bottom;
         int navBottom = insets.getInsetsIgnoringVisibility(
                 WindowInsets.Type.navigationBars()).bottom;
         int kbHeight = imeBottom - navBottom;
-        Log.v(TAG, "getKeyboardHeightFromInsets: imeVisible=" + imeVisible +
-              " imeBottom=" + imeBottom + " navBottom=" + navBottom + " kbHeight=" + kbHeight);
-        if (!imeVisible) {
-            return 0;
-        }
         return (kbHeight > 0) ? kbHeight : 0;
     }
 
@@ -1633,14 +1627,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * from render coordinates on the C side), so we compare directly
      * against the keyboard position in pixels.
      */
-    protected static final int PAN_PADDING = 80;
+    protected static final int PAN_PADDING = 15;
 
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
             return;
         }
-
-        Log.v(TAG, "updateViewPan called: kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
 
         float panY = 0.0f;
 
@@ -1652,15 +1644,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             if (rectBottom > keyboardTop) {
                 panY = keyboardTop - rectBottom;
             }
-
-            Log.v(TAG, "updateViewPan: screenH=" + screenHeight +
-                  " kbH=" + mKeyboardHeight +
-                  " kbTop=" + keyboardTop +
-                  " textY=" + mTextInputY +
-                  " textH=" + mTextInputH +
-                  " rectBot=" + rectBottom +
-                  " padding=" + PAN_PADDING +
-                  " panY=" + panY);
         }
 
         /* On API 30+, WindowInsetsAnimation automatically handles shifting
