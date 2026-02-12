@@ -1642,11 +1642,16 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         }
 
         /* On API 30+, WindowInsetsAnimation automatically handles shifting
-         * the view content when the keyboard appears. We only need to apply
-         * our own translation on older APIs where the legacy PopupWindow
-         * detection is used. */
+         * the view content when the keyboard appears. It shifts by the exact
+         * amount needed to avoid the keyboard, but doesn't account for our
+         * padding. Apply only the padding as additional translation.
+         * On older APIs we apply the full pan amount. */
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             mLayout.setTranslationY(panY);
+        } else if (panY < 0) {
+            mLayout.setTranslationY(-PAN_PADDING);
+        } else {
+            mLayout.setTranslationY(0);
         }
     }
 
