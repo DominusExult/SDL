@@ -630,7 +630,7 @@ static void SDLCALL SDL_HideHomeIndicatorHintChanged(void *userdata, const char 
 }
 
 /* Extra pixels of breathing room above the keyboard */
-#define PAN_PADDING 80
+#define PAN_PADDING 15
 
 - (void)updateKeyboard
 {
