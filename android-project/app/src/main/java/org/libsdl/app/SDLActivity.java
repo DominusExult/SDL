@@ -41,7 +41,6 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsAnimation;
 import android.view.WindowManager;
-import android.graphics.Insets;
 import android.graphics.Rect;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
