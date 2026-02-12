@@ -1624,7 +1624,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
-            int layoutHeight = mLayout.getHeight();
             int rectBottom = mTextInputY + mTextInputH;
             int keyboardTop = screenHeight - mKeyboardHeight;
 
@@ -1632,30 +1631,22 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 panY = keyboardTop - rectBottom;
             }
 
-            // Get display metrics for debugging
-            android.util.DisplayMetrics dm = mSingleton.getResources().getDisplayMetrics();
-
-            // Log the surface and layout positions
-            int[] surfaceLoc = new int[2];
-            int[] layoutLoc = new int[2];
-            mSurface.getLocationOnScreen(surfaceLoc);
-            mLayout.getLocationOnScreen(layoutLoc);
-
             Log.v(TAG, "updateViewPan: kbH=" + mKeyboardHeight +
                   " screenH=" + screenHeight +
-                  " layoutH=" + layoutHeight +
-                  " dmH=" + dm.heightPixels +
                   " rectBot=" + rectBottom +
                   " kbTop=" + keyboardTop +
-                  " panY=" + panY +
-                  " rect=(" + mTextInputX + "," + mTextInputY + "," + mTextInputW + "," + mTextInputH + ")" +
-                  " surfaceLoc=(" + surfaceLoc[0] + "," + surfaceLoc[1] + ")" +
-                  " layoutLoc=(" + layoutLoc[0] + "," + layoutLoc[1] + ")");
+                  " panY=" + panY);
         } else {
             Log.v(TAG, "updateViewPan: SKIPPED kbH=" + mKeyboardHeight + " textH=" + mTextInputH);
         }
 
-        mSurface.setTranslationY(panY);
+        /* On API 30+, WindowInsetsAnimation automatically handles shifting
+         * the view content when the keyboard appears. We only need to apply
+         * our own translation on older APIs where the legacy PopupWindow
+         * detection is used. */
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            mLayout.setTranslationY(panY);
+        }
     }
 
     /**
