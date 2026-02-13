@@ -1623,9 +1623,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * Update the view pan/scroll to keep the text input area visible
      * above the on-screen keyboard.
      *
-     * The text input rect arrives in screen pixel coordinates (converted
-     * from render coordinates on the C side), so we compare directly
-     * against the keyboard position in pixels.
+     * The text input rect arrives in window pixel coordinates from
+     * SDL_SetTextInputArea(), so we compare directly against the
+     * keyboard position in pixels.
      */
     protected static final int PAN_PADDING = 15;
 
