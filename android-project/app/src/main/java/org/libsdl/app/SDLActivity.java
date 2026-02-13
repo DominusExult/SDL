@@ -1604,9 +1604,6 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                                 int newHeight = (keyboardHeight > screenHeight * 0.15)
                                         ? keyboardHeight : 0;
 
-                                Log.v(TAG, "PopupWindow onGlobalLayout: screenH=" + screenHeight +
-                                      " popupRect.bottom=" + popupRect.bottom +
-                                      " rawKbH=" + keyboardHeight + " newH=" + newHeight);
 
                                 if (newHeight != mKeyboardHeight) {
                                     mKeyboardHeight = newHeight;

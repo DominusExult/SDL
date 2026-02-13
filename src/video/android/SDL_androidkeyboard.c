@@ -472,8 +472,6 @@ bool Android_UpdateTextInputArea(SDL_VideoDevice *_this, SDL_Window *window)
         r->w != s_lastTextInputRect.w || r->h != s_lastTextInputRect.h) {
         s_lastTextInputRect = *r;
 
-        /* The rect from SDL_SetTextInputArea() is already in window coordinates,
-         * so pass it directly to the JNI layer. */
         Android_JNI_UpdateTextInputArea(r);
     }
     return true;
