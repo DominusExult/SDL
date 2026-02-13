@@ -1427,9 +1427,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
 
         @Override
         public void run() {
-            // Add PAN_PADDING to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
+            // Add pan padding to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
             // Fullscreen apps handle panning in updateViewPan() instead.
-            int heightPadding = mFullscreenModeActive ? 0 : PAN_PADDING;
+            int heightPadding = mFullscreenModeActive ? 0 : getPanPadding();
             RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(w, h + heightPadding);
             params.leftMargin = x;
             params.topMargin = y;
@@ -1624,18 +1624,29 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
      * SDL_SetTextInputArea(), so we compare directly against the
      * keyboard position in pixels.
      */
-    protected static final int PAN_PADDING = 15;
+    protected static int getPanPadding() {
+        String hint = nativeGetHint("SDL_IME_PAN_PADDING");
+        if (hint != null) {
+            try {
+                return Integer.parseInt(hint);
+            } catch (NumberFormatException e) {
+                // Fall through to default
+            }
+        }
+        return 0;
+    }
 
     protected static void updateViewPan() {
         if (mLayout == null || mSurface == null) {
             return;
         }
 
+        int panPadding = getPanPadding();
         float panY = 0.0f;
 
         if (mKeyboardHeight > 0 && mTextInputH > 0) {
             int screenHeight = mSurface.getHeight();
-            int rectBottom = mTextInputY + mTextInputH + PAN_PADDING;
+            int rectBottom = mTextInputY + mTextInputH + panPadding;
             int keyboardTop = screenHeight - mKeyboardHeight;
 
             if (rectBottom > keyboardTop) {
@@ -1651,7 +1662,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             mLayout.setTranslationY(panY);
         } else if (panY < 0) {
-            mLayout.setTranslationY(-PAN_PADDING);
+            mLayout.setTranslationY(-panPadding);
         } else {
             mLayout.setTranslationY(0);
         }
@@ -1676,9 +1687,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                 if (mTextEdit != null) {
                     int ew = (w > 0) ? w : 1;
                     int eh = (h > 0) ? h : 1;
-                    // Add PAN_PADDING to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
+                    // Add pan padding to height for non-fullscreen apps so Android's auto-pan leaves breathing room.
                     // Fullscreen apps handle panning in updateViewPan() instead.
-                    int heightPadding = mFullscreenModeActive ? 0 : PAN_PADDING;
+                    int heightPadding = mFullscreenModeActive ? 0 : getPanPadding();
                     RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ew, eh + heightPadding);
                     params.leftMargin = x;
                     params.topMargin = y;
